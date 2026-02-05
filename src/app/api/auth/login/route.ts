@@ -1,0 +1,36 @@
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { signSession, getSessionCookieName } from "@/lib/auth";
+import { jsondb } from "@/lib/jsondb";
+
+export async function POST(req: Request) {
+  const { email, password } = (await req.json().catch(() => ({}))) as {
+    email?: string;
+    password?: string;
+  };
+
+  if (!email || !password) {
+    return NextResponse.json({ error: "email と password が必要です" }, { status: 400 });
+  }
+
+  const user = jsondb.getUserByEmail(email);
+  if (!user) {
+    return NextResponse.json({ error: "メールまたはパスワードが違います" }, { status: 401 });
+  }
+
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) {
+    return NextResponse.json({ error: "メールまたはパスワードが違います" }, { status: 401 });
+  }
+
+  const token = await signSession({ sub: user.id, role: user.role, email: user.email });
+
+  const res = NextResponse.json({ ok: true, role: user.role });
+  res.cookies.set(getSessionCookieName(), token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false,
+    path: "/"
+  });
+  return res;
+}
