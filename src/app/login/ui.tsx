@@ -18,11 +18,19 @@ export default function LoginForm() {
     setLoading(true);
     setErr(null);
 
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password })
+      });
+    } catch (e: any) {
+      setLoading(false);
+      setErr("ネットワークエラーが発生しました");
+      return;
+    }
 
     setLoading(false);
 
@@ -32,7 +40,8 @@ export default function LoginForm() {
       return;
     }
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({ role: "buddy" }));
+
     if (nextPath) router.push(nextPath);
     else router.push(data.role === "admin" ? "/admin" : "/buddy");
   }
