@@ -1,10 +1,47 @@
-import Link from "next/link";
-import { requireUser } from "@/lib/serverAuth";
-import { jsondb } from "@/lib/jsondb";
+"use client";
 
-export default async function BuddyPage() {
-  const user = await requireUser();
-  const assignments = jsondb.listAssignmentsForUser(user.id);
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { authFetch, clearSessionToken } from "@/lib/clientSession";
+
+type User = { id: string; role: "admin" | "buddy"; email: string };
+type Assignment = {
+  id: string;
+  event: { title: string; type: "culture" | "japanese"; startAt: string; meetingPlace: string };
+};
+
+export default function BuddyPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const meRes = await authFetch("/api/auth/me");
+      const me = await meRes.json().catch(() => ({}));
+      const u: User | null = me.user ?? null;
+      if (!u) {
+        setLoading(false);
+        return router.replace("/login?next=/buddy");
+      }
+      setUser(u);
+
+      const aRes = await authFetch("/api/buddy/assignments");
+      const a = await aRes.json().catch(() => ({}));
+      setAssignments(a.assignments ?? []);
+      setLoading(false);
+    })();
+  }, [router]);
+
+  function logout() {
+    clearSessionToken();
+    router.replace("/login");
+  }
+
+  if (loading) return <p>読み込み中...</p>;
+  if (!user) return null;
 
   return (
     <main>
@@ -14,9 +51,7 @@ export default async function BuddyPage() {
           <p style={{ color: "#666" }}>{user.email}</p>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <form action="/api/auth/logout" method="post">
-            <button type="submit">ログアウト</button>
-          </form>
+          <button onClick={logout}>ログアウト</button>
           <Link href="/">ホーム</Link>
         </div>
       </header>

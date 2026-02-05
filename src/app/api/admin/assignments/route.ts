@@ -1,12 +1,12 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/serverAuth";
+import { requireAdminFromRequest } from "@/lib/serverAuth";
 import { jsondb } from "@/lib/jsondb";
 
 export async function GET(req: Request) {
   try {
-    await requireAdmin();
+    await requireAdminFromRequest(req);
 
     const url = new URL(req.url);
     const eventId = url.searchParams.get("eventId") ?? "";
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireAdminFromRequest(req);
 
     const body = (await req.json().catch(() => ({}))) as any;
     const eventId = String(body.eventId ?? "");
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     if (!eventId) return NextResponse.json({ error: "eventId が必要です" }, { status: 400 });
 
-    jsondb.setAssignmentsForEvent(eventId, userIds);
+    jsondb.setAssignments(eventId, userIds);
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     console.error("[admin/assignments POST] error:", e);

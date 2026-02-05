@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { setSessionToken } from "@/lib/clientSession";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -26,7 +27,7 @@ export default function LoginForm() {
         credentials: "include",
         body: JSON.stringify({ email, password })
       });
-    } catch (e: any) {
+    } catch {
       setLoading(false);
       setErr("ネットワークエラーが発生しました");
       return;
@@ -34,13 +35,13 @@ export default function LoginForm() {
 
     setLoading(false);
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       setErr(data?.error ?? "ログインに失敗しました");
       return;
     }
 
-    const data = await res.json().catch(() => ({ role: "buddy" }));
+    if (data?.token) setSessionToken(String(data.token));
 
     if (nextPath) router.push(nextPath);
     else router.push(data.role === "admin" ? "/admin" : "/buddy");

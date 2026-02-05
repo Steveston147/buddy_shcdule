@@ -1,12 +1,12 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/serverAuth";
+import { requireAdminFromRequest } from "@/lib/serverAuth";
 import { jsondb } from "@/lib/jsondb";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    await requireAdmin();
+    await requireAdminFromRequest(req);
     return NextResponse.json({ events: jsondb.listEvents() });
   } catch (e: any) {
     console.error("[admin/events GET] error:", e);
@@ -16,7 +16,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireAdminFromRequest(req);
 
     const body = (await req.json().catch(() => ({}))) as any;
     const title = String(body.title ?? "").trim();
@@ -33,13 +33,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "開始日時が不正です" }, { status: 400 });
     }
 
-    const e = jsondb.createEvent({
-      title,
-      type,
-      startAt: d.toISOString(),
-      meetingPlace
-    });
-
+    const e = jsondb.createEvent({ title, type, startAt: d.toISOString(), meetingPlace });
     return NextResponse.json({ event: e });
   } catch (e: any) {
     console.error("[admin/events POST] error:", e);

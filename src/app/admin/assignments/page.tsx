@@ -1,12 +1,23 @@
+"use client";
+
 import Link from "next/link";
-import { requireAdmin } from "@/lib/serverAuth";
-import { jsondb } from "@/lib/jsondb";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { authFetch } from "@/lib/clientSession";
 import AdminAssignmentsClient from "./ui";
 
-export default async function AdminAssignmentsPage() {
-  await requireAdmin();
-  const events = jsondb.listEvents();
-  const buddies = jsondb.listBuddies().map((b) => ({ id: b.id, email: b.email }));
+export default function AdminAssignmentsPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    (async () => {
+      const res = await authFetch("/api/auth/me");
+      const data = await res.json().catch(() => ({}));
+      const u = data.user;
+      if (!u) return router.replace("/login?next=/admin/assignments");
+      if (u.role !== "admin") return router.replace("/buddy");
+    })();
+  }, [router]);
 
   return (
     <main>
@@ -14,8 +25,7 @@ export default async function AdminAssignmentsPage() {
       <p>
         <Link href="/admin">← 管理トップ</Link>
       </p>
-
-      <AdminAssignmentsClient events={events} buddies={buddies} />
+      <AdminAssignmentsClient />
     </main>
   );
 }
