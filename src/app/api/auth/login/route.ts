@@ -5,6 +5,13 @@ import bcrypt from "bcryptjs";
 import { signSession, getSessionCookieName } from "@/lib/auth";
 import { jsondb } from "@/lib/jsondb";
 
+function isHttpsRequest(req: Request) {
+  // Vercel/Proxy/StackBlitzなどで https 判定がズレることがあるので両方見る
+  const xfProto = req.headers.get("x-forwarded-proto");
+  if (xfProto) return xfProto === "https";
+  return req.url.startsWith("https://");
+}
+
 export async function POST(req: Request) {
   try {
     const { email, password } = (await req.json().catch(() => ({}))) as {
@@ -29,12 +36,16 @@ export async function POST(req: Request) {
     const token = await signSession({ sub: user.id, role: user.role, email: user.email });
 
     const res = NextResponse.json({ ok: true, role: user.role });
+
+    const secure = isHttpsRequest(req);
+    // https のときは iframe/別オリジンでも落ちにくい設定に寄せる
     res.cookies.set(getSessionCookieName(), token, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false,
-      path: "/"
+      path: "/",
+      secure,
+      sameSite: secure ? "none" : "lax"
     });
+
     return res;
   } catch (e: any) {
     console.error("[login] error:", e);
